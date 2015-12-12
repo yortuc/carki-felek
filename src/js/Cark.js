@@ -182,8 +182,8 @@ Cark.prototype.update = function() {
   }
 
   // render updates
-  //clear scene
-  this.drawBg();
+  this.ctx.fillStyle = "#fff";
+  this.ctx.fillRect(0,0,this.rect.width, this.rect.height);
 
   this.ctx.save();
 
@@ -193,9 +193,11 @@ Cark.prototype.update = function() {
   //var r = this.rect.width * 0.9;
   //this.ctx.drawImage(Resouces.images["carkaktif.png"], -r/2, -r/2, r, r);
 
-
   for(var i=0; i<this.slices.length; i++){
     this.drawSegment(i);
+  }
+  for(var i=0; i<this.slices.length; i++){
+    this.drawSegmenOverlay(i);
   }
 
   //this.drawButton();
@@ -210,6 +212,8 @@ Cark.prototype.update = function() {
 
     var winSlice = this.slices[winIndex];
 
+    winSlice.active = true;
+
     if(this.onWin) this.onWin(winSlice);
     won = false;
   }
@@ -222,19 +226,10 @@ Cark.prototype.update = function() {
 Cark.prototype.drawSegment = function(i) {   
    
     this.ctx.save();
-
-    /*this.ctx.beginPath();
-    this.ctx.moveTo(0, 0);
-    this.ctx.arc(0, 0, this.radius, 
-            startingAngle, endingAngle, false);
-    this.ctx.closePath();
-
-    this.ctx.fillStyle = slice.color;
-    //this.ctx.fill();*/
-      
+     
     this.ctx.rotate( i * 2*Math.PI / this.slices.length );
 
-    var destRatio = (this.radius - 35) /  this.sliceHeight ;
+    var destRatio = (this.radius - 35) /  this.sliceHeight ;  // dil offset
     var dw = this.sliceWidth * destRatio;
     var dh = this.sliceHeight * destRatio;
 
@@ -250,18 +245,16 @@ Cark.prototype.drawSegment = function(i) {
       dw, 
       dh);
 
-    this.drawSegmenOverlay(i);
-    
     this.ctx.restore();
-
-    //this.drawSegmentLabel(i);
 }
 
 Cark.prototype.drawSegmenOverlay = function(i) {
 
+  if(!this.slices[i].active) return;
+
   this.ctx.save();
 
-  var startingAngle = degreesToRadians(this.degPerSlice* i - this.degPerSlice/2);
+  var startingAngle = degreesToRadians(this.degPerSlice* i - this.degPerSlice/2) - Math.PI/2;
   var arcSize = degreesToRadians(this.degPerSlice);
   var endingAngle = startingAngle + arcSize;
 
@@ -269,54 +262,33 @@ Cark.prototype.drawSegmenOverlay = function(i) {
   var dw = this.sliceWidth * destRatio;
   var dh = this.sliceHeight * destRatio;
 
-  this.ctx.globalCompositeOperation = "overlay";
-  var opacityRatio = Math.abs(Math.sin(this.theta * i));
+  var opacityRatio = Math.abs( Math.sin( this.theta * (i*50+1) /20 ) );
+
+  if(i * this.theta > 0){
+    var x = "asd";
+  }
 
   // overlay
   this.ctx.beginPath();
   this.ctx.moveTo(0, 0);
-  this.ctx.arc(0, 0, dh, -arcSize/2, arcSize/2, false);
+  this.ctx.arc(0,0,dh,startingAngle,endingAngle);
   this.ctx.closePath();
   this.ctx.clip();
 
-  this.ctx.beginPath();
-  this.ctx.moveTo(0, 0);
-  this.ctx.arc(0, 0, dh, -arcSize/2, arcSize/2, false);
-  this.ctx.closePath();
-  this.ctx.fillStyle = "rgba(255,255,255," + opacityRatio.toFixed(2) + ")";
-  this.ctx.fill();
+  this.ctx.globalCompositeOperation = "overlay";
+  this.ctx.fillStyle = "rgba(255,255,255,0.7)";
+  this.ctx.moveTo(0,0);
+  this.ctx.arc(0,0,dh,startingAngle,endingAngle);
+  this.ctx.lineTo(0,0);
+  this.ctx.fill()
+
+  //this.ctx.fillRect(0,-dw/2,dh,dw);
 
   this.ctx.restore();
 
   //this.ctx.fillStyle= "black";
   //this.ctx.fillRect(-dw/2,-dh,dw,dh);
 
-}
-
-Cark.prototype.drawSegmentLabel = function(i) {
-
-  var text = this.slices[i].text;
-
-  this.ctx.save();
-
-  var angle = degreesToRadians(this.degPerSlice * i );
-
-  drawTextAlongArc(this.ctx, this.slices[i].text, 0, 0, this.radius, angle);
-
-   /*this.ctx.textBaseline = 'middle';
-   this.ctx.rotate(angle);
-
-   var dx = Math.floor(this.radius) - 10;
-   var dy = Math.floor(this.radius * 0.05);
-
-   this.ctx.textAlign = "right";
-   var fontSize = Math.floor(this.rect.height / 25);
-   this.ctx.font = fontSize + "pt Helvetica";
-
-   this.ctx.fillText(text, dx, dy);
-   */
-
-   this.ctx.restore();
 }
 
 Cark.prototype.drawDil = function(){
@@ -339,18 +311,6 @@ Cark.prototype.drawDil = function(){
   this.ctx.fill();  */
 
   this.ctx.restore();
-}
-
-Cark.prototype.drawBg = function(){
-  var color = "white";
-  
-  /*if(this.isTurning) {
-    var colorVal = Math.floor( Math.abs(Math.sin(this.theta*5)) * 255 );
-    color = "rgb(" + colorVal + "," + colorVal + "," + colorVal + ")"; 
-  }*/
-
-  this.ctx.fillStyle = color;
-  this.ctx.fillRect(0,0,this.rect.width, this.rect.height);
 }
 
 Cark.prototype.toLocalCoords = function(x,y){

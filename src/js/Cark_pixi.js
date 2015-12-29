@@ -24,7 +24,7 @@ Cark.prototype.init = function(){
 
   // init 2d drawing context
   this.canvas = document.getElementById('canvas');
-  this.ctx = this.canvas.getContext("2d");
+  //this.ctx = this.canvas.getContext("2d");
   this.rect = this.canvas.getBoundingClientRect();
   this.radius =  this.rect.width/2;
 
@@ -120,8 +120,100 @@ Cark.prototype.init = function(){
       this.isDown = false;
     }
   }.bind(this);
+
+  this.initRenderer();
 }
 
+Cark.prototype.initRenderer = function(){
+
+  this.stage = new PIXI.Container();
+
+  // cark
+  this.stageCark = new PIXI.Container();
+  this.stageCark.pivot.set(this.centerPoint.x, this.centerPoint.y);
+  this.stageCark.position.set(this.centerPoint.x, this.centerPoint.y);
+
+  this.renderer = PIXI.autoDetectRenderer(
+    this.rect.width,
+    this.rect.height,
+    {view:this.canvas, transparent: true, antialias: true}
+  );
+
+  this.analyseText();
+
+  // create slices
+  for(var i=0; i<this.slices.length; i++){
+    var gSlice = new PIXI.Graphics();
+    gSlice.beginFill( this.slices[i].bgColor );
+    gSlice.lineStyle(2, 0xffffff, 1);
+
+    var startingAngle = i * this.radPerSlice - this.radPerSlice/2;
+    var endingAngle = startingAngle + this.radPerSlice;
+
+    gSlice.moveTo(this.centerPoint.x, this.centerPoint.y);
+    gSlice.arc(300,300, this.radius, startingAngle, endingAngle);
+    gSlice.lineTo(300, 300);
+
+    gSlice.endFill();
+
+    this.stageCark.addChild(gSlice);
+    this.createSliceText(i, this.stageCark);
+  };
+  this.stage.addChild(this.stageCark);
+
+  // dil
+  var dilTexture = PIXI.Texture.fromImage('images/peg.png');
+  this.dil = new PIXI.Sprite(dilTexture);
+  this.dil.anchor.set(0.5, 0.2);
+  this.dil.position.set(300, 15);
+  this.stage.addChild(this.dil);
+
+  // roll button
+  //var btnTexture = PIXI.Texture.fromImage('images/button.png');
+  //var button = new PIXI.Sprite(btnTexture);
+  //button.anchor.set(0.5, 0.5);
+  //button.position.set(300,300);
+  //this.stage.addChild(button);
+}
+
+Cark.prototype.analyseText = function() {
+
+  var _maxTextLen = 0;
+
+  for(var i=0; i<this.slices.length; i++){
+    var sliceLen = this.slices[i].text.length;
+    if( sliceLen > _maxTextLen) {
+      _maxTextLen = sliceLen;
+    }
+  }
+
+  this.maxTextLen = _maxTextLen;
+  this.radsPerLetter = this.radPerSlice/_maxTextLen;
+}
+
+Cark.prototype.createSliceText = function(i, container){
+
+  var radEmptySpace = this.radsPerLetter * (this.maxTextLen - this.slices[i].text.length) / 2;
+
+  var rotStart = i * this.radPerSlice - this.radPerSlice/2 + radEmptySpace;
+
+  var text = this.slices[i].text; 
+  
+  var style = {
+      font : '26px Arial',
+      fill : '#fff'
+  };
+
+  for(var j=0;j<text.length;j++){
+    var rot = rotStart + (j * this.radsPerLetter);
+    var txt = new PIXI.Text(text[j], style);
+    txt.x = 300 + 0.95 * this.radius * Math.cos( rot );
+    txt.y = 300 + 0.95 * this.radius * Math.sin( rot );
+    txt.anchor.set(0.5, 0.5);
+    txt.rotation = rot + Math.PI/2;
+    container.addChild(txt);
+  }
+}
 
 Cark.prototype.turnCark = function(p2,p1,t2,t1){
     var dx = p2.x - p1.x;   
@@ -177,97 +269,20 @@ Cark.prototype.update = function() {
     this.audio.setRate(1-this.friction);
   }
 
-  // render updates
-  this.ctx.fillStyle = "#fff";
-  this.ctx.fillRect(0,0,this.rect.width, this.rect.height);
+  this.stageCark.rotation = this.theta;
 
-  this.ctx.save();
-
-  this.ctx.translate(this.centerPoint.x, this.centerPoint.y);
-  this.ctx.rotate(this.theta);
-
-  for(var i=0; i<this.slices.length; i++){
-    this.drawSegment(i);
-  }
-  for(var i=0; i<this.slices.length; i++){
-    this.drawSegmentText(i);
-  }
-
-  this.ctx.restore();
-
-  this.drawButton();
-
-  this.drawDil();
-
-  if(won){
-    var theta = ( this.theta + (60*Math.PI) + this.radPerSlice/2 ) % (2*Math.PI);
-    var winIndex = this.slices.length - Math.ceil( theta * this.slices.length / (2* Math.PI) ) + 1;
-
-    var winSlice = this.slices[winIndex];
-
-    winSlice.active = true;
-
-    if(this.onWin) this.onWin(winSlice);
-    won = false;
-  }
+  this.updateDil();
 
   this.lastUpdate = Date.now();
+
+  this.renderer.render(this.stage);
 
   requestAnimationFrame( this.update.bind(this) );
 }
 
-Cark.prototype.drawSegment = function(i) {   
-   
-    this.ctx.save();
-
-    var startingAngle = i * this.radPerSlice - this.radPerSlice/2;
-    
-    var endingAngle = startingAngle + this.radPerSlice;
-
-    this.ctx.fillStyle = this.slices[i].bgColor;
-    this.ctx.beginPath();
-    this.ctx.moveTo(0,0);
-    this.ctx.arc(0,0, this.radius, startingAngle, endingAngle);
-    this.ctx.lineTo(0,0);
-    this.ctx.fill();
-
-    this.ctx.restore();
-}
-
-Cark.prototype.drawSegmentText = function(i){
-
-  this.ctx.save();
-
-  this.ctx.rotate(i * this.radPerSlice - this.radPerSlice/2);
-
-  var text = this.slices[i].text; 
-  var radsPerLetter = this.radPerSlice/text.length;
-
-  for(var j=0;j<text.length;j++){
-    this.ctx.save();
-    this.ctx.rotate(j*radsPerLetter);
-
-    this.ctx.fillStyle = "white";
-    this.ctx.font = "20px Arial";
-    this.ctx.fillText(text[j], 0, -this.radius*0.9);
-    this.ctx.restore();
-  }
-
-  this.ctx.restore();
-}
-
-Cark.prototype.drawDil = function(){
-
-  this.ctx.save();
-  this.ctx.translate(this.rect.width/2, 20);
-
+Cark.prototype.updateDil = function(){
   var rot = Math.abs(Math.sin(this.theta*8)) * Math.PI/4;
-
-  this.ctx.rotate( -1 * this.turningDirection * rot );
-
-  this.ctx.drawImage(Resouces.images["peg.png"], -20, -20, 40, 70);
-
-  this.ctx.restore();
+  this.dil.rotation = -1 * this.turningDirection * rot;
 }
 
 Cark.prototype.toLocalCoords = function(x,y){
@@ -297,23 +312,6 @@ Cark.prototype.cevir = function(){
   console.log(this.omega);
 
   this.isDown = false;
-}
-
-Cark.prototype.drawButton = function(){
-  this.ctx.save();
-  this.ctx.translate(this.rect.width/2, this.rect.width/2);
-
-  var sourceX = this.buttonHover ? 0 : this.buttonSprite.width/2;
-
-  this.ctx.drawImage( this.buttonSprite, 
-                      sourceX, 0, this.buttonSprite.width/2, this.buttonSprite.height,
-                      -this.buttonSprite.width/4, -this.buttonSprite.height/2, this.buttonSprite.width/2, this.buttonSprite.height );
-
-  this.ctx.restore();
-}
-
-function degreesToRadians(degrees) {
-    return (degrees * Math.PI)/180;
 }
 
 var requestAnimationFrame = window.requestAnimationFrame ||

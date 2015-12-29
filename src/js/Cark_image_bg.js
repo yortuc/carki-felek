@@ -4,19 +4,26 @@ import Audio from "./Audio";
 function Cark (data){
   data = data || {};
 
-  this.slices = data.slices;
-  this.buttonSprite = data.buttonSprite;
+  this.slices = data.slices || [{
+    text: "Krmızı dilim", color:"red" }, {
+    text: "Mavi dilim", color:"blue" }, {
+    text: "Turuncu dilim", color: "orange" }]
 
+  this.sprite = data.sprite;
+  this.sliceHeight = data.sprite.height;
+  this.sliceWidth = data.sliceWidth;
+  this.buttonSprite = data.buttonSprite;
+  this.buttonHover = false;
+
+  this.onDragging = data.onDragging;
   this.onDragFinished = data.onDragFinished;
   this.onWin = data.onWin;
   this.friction = data.friction || 0.018;
   this.dumping = data.dumping || 0.00008;
-
   this.init();
 }
 
 Cark.prototype.init = function(){
-  this.buttonHover = false;
   this.isTurning = false;
   this.turningDirection = 0;
   this.theta = 0;
@@ -28,7 +35,7 @@ Cark.prototype.init = function(){
   this.rect = this.canvas.getBoundingClientRect();
   this.radius =  this.rect.width/2;
 
-  this.radPerSlice = 2*Math.PI/this.slices.length;  // radians per slice
+  this.degPerSlice = 360/this.slices.length;
   this.centerPoint = {x: this.rect.width/2, y: this.rect.height/2};
   this.lastUpdate = null;
 
@@ -161,10 +168,10 @@ Cark.prototype.update = function() {
   var won = false;
   var dt = Date.now() - this.lastUpdate;
   
-  // update phsyics
+  // update phsiycs
   this.theta += this.omega * dt;
 
-  this.theta = roundZero(this.theta, 0.001);
+  //this.theta = roundZero(this.theta, 0.001);
   this.omega = roundZero(this.omega * (1-this.friction), this.dumping );
 
   if(this.isTurning && this.omega === 0) {
@@ -186,11 +193,14 @@ Cark.prototype.update = function() {
   this.ctx.translate(this.centerPoint.x, this.centerPoint.y);
   this.ctx.rotate(this.theta);
 
+  //var r = this.rect.width * 0.9;
+  //this.ctx.drawImage(Resouces.images["carkaktif.png"], -r/2, -r/2, r, r);
+
   for(var i=0; i<this.slices.length; i++){
     this.drawSegment(i);
   }
   for(var i=0; i<this.slices.length; i++){
-    this.drawSegmentText(i);
+    this.drawSegmenOverlay(i);
   }
 
   this.ctx.restore();
@@ -200,7 +210,7 @@ Cark.prototype.update = function() {
   this.drawDil();
 
   if(won){
-    var theta = ( this.theta + (60*Math.PI) + this.radPerSlice/2 ) % (2*Math.PI);
+    var theta = ( this.theta + (60*Math.PI) + degreesToRadians(this.degPerSlice)/2 ) % (2*Math.PI);
     var winIndex = this.slices.length - Math.ceil( theta * this.slices.length / (2* Math.PI) ) + 1;
 
     var winSlice = this.slices[winIndex];
@@ -219,39 +229,54 @@ Cark.prototype.update = function() {
 Cark.prototype.drawSegment = function(i) {   
    
     this.ctx.save();
+     
+    this.ctx.rotate( i * 2*Math.PI / this.slices.length );
 
-    var startingAngle = i * this.radPerSlice - this.radPerSlice/2;
-    
-    var endingAngle = startingAngle + this.radPerSlice;
+    var destRatio = (this.radius - 35) /  this.sliceHeight ;  // dil offset
+    var dw = this.sliceWidth * destRatio;
+    var dh = this.sliceHeight * destRatio;
 
-    this.ctx.fillStyle = this.slices[i].bgColor;
-    this.ctx.beginPath();
-    this.ctx.moveTo(0,0);
-    this.ctx.arc(0,0, this.radius, startingAngle, endingAngle);
-    this.ctx.lineTo(0,0);
-    this.ctx.fill();
+    this.ctx.drawImage( 
+      this.sprite, 
+      i*this.sliceWidth, 
+      0, 
+      this.sliceWidth, 
+      this.sliceHeight, 
+      -dw/2, 
+      -dh, 
+      dw, 
+      dh);
 
     this.ctx.restore();
 }
 
-Cark.prototype.drawSegmentText = function(i){
+Cark.prototype.drawSegmenOverlay = function(i) {
+
+  if(!this.slices[i].active) return;
 
   this.ctx.save();
 
-  this.ctx.rotate(i * this.radPerSlice - this.radPerSlice/2);
+  var startingAngle = degreesToRadians(this.degPerSlice* i - this.degPerSlice/2) - Math.PI/2;
+  var arcSize = degreesToRadians(this.degPerSlice);
+  var endingAngle = startingAngle + arcSize;
 
-  var text = this.slices[i].text; 
-  var radsPerLetter = this.radPerSlice/text.length;
+  var destRatio = (this.radius - 35) /  this.sliceHeight ;
+  var dw = this.sliceWidth * destRatio;
+  var dh = this.sliceHeight * destRatio;
 
-  for(var j=0;j<text.length;j++){
-    this.ctx.save();
-    this.ctx.rotate(j*radsPerLetter);
+  // overlay
+  this.ctx.beginPath();
+  this.ctx.moveTo(0, 0);
+  this.ctx.arc(0,0,dh,startingAngle,endingAngle);
+  this.ctx.closePath();
+  this.ctx.clip();
 
-    this.ctx.fillStyle = "white";
-    this.ctx.font = "20px Arial";
-    this.ctx.fillText(text[j], 0, -this.radius*0.9);
-    this.ctx.restore();
-  }
+  this.ctx.globalCompositeOperation = "overlay";
+  this.ctx.fillStyle = "rgba(255,255,255,0.7)";
+  this.ctx.moveTo(0,0);
+  this.ctx.arc(0,0,dh,startingAngle,endingAngle);
+  this.ctx.lineTo(0,0);
+  this.ctx.fill()
 
   this.ctx.restore();
 }
@@ -263,7 +288,7 @@ Cark.prototype.drawDil = function(){
 
   var rot = Math.abs(Math.sin(this.theta*8)) * Math.PI/4;
 
-  this.ctx.rotate( -1 * this.turningDirection * rot );
+  this.ctx.rotate(  -1 * this.turningDirection * rot);
 
   this.ctx.drawImage(Resouces.images["peg.png"], -20, -20, 40, 70);
 

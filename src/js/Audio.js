@@ -1,32 +1,65 @@
+import BufferLoader from './BufferLoader';
+
 function Audio(){
-	var sound = document.createElement('audio');
-	sound.onloadeddata = function(s){
-		this.loaded = true;
-		console.log("sound loaded", s);
-	}.bind(this);
-	sound.setAttribute("src", "images/wheel.mp3");
+}
 
-	sound.playbackRate = 1;
+Audio.prototype.init = function(){
+	try {
+		// Fix up for prefixing
+		window.AudioContext = window.AudioContext||window.webkitAudioContext;
+		this.context = new AudioContext();
+	}
+	catch(e) {
+		console.log('Bu browser Web Audio API desteklemiyor. Ses devre dışı.');
+		return;
+	}
 
-	this.sound = sound;
-	this.rate = 1;
-	this.sound.volume = this.rate;
+	var bufferLoader = new BufferLoader(
+		this.context,
+		[
+		  'images/wheel.mp3', 'images/win.mp3'
+		],
+		this.finishedLoading.bind(this)
+	);
+
+	bufferLoader.load();
+}
+
+Audio.prototype.finishedLoading = function(bufferList) {
+	console.log(bufferList);
+	this.bufferList = bufferList;
 }
 
 Audio.prototype.play = function(){
-	this.sound.play();
+
+	// sourceNode
+	var source = this.context.createBufferSource();
+	source.buffer = this.bufferList[0];
+
+	// Create a gain node.
+	this.gainNode = this.context.createGain();
+	this.gainNode.gain.value = 1;
+
+	source.connect(this.gainNode);
+	this.gainNode.connect(this.context.destination);
+
+	source.start(0);
+}
+
+Audio.prototype.setRate = function(volRate){
+	this.gainNode.gain.value *= volRate;
 }
 
 Audio.prototype.stop = function(){
-	this.sound.pause();
-	this.sound.currentTime = 0;
-	this.rate = 1;
-	this.sound.volume = this.rate;
+	this.gainNode.gain.value = 0;
 }
 
-Audio.prototype.setRate = function(friction){
-	this.rate = this.rate * friction;
-	this.sound.volume = this.rate;
+Audio.prototype.playWin = function(){
+	// sourceNode
+	var source = this.context.createBufferSource();
+	source.buffer = this.bufferList[1];
+	source.connect(this.context.destination);
+	source.start(0);
 }
 
 export default Audio;

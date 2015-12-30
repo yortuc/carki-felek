@@ -5,8 +5,7 @@ function Cark (data){
   data = data || {};
 
   this.slices = data.slices;
-  this.buttonSprite = data.buttonSprite;
-
+  this.turnOnce = data.turnOnce;
   this.onDragFinished = data.onDragFinished;
   this.onWin = data.onWin;
   this.friction = data.friction || 0.018;
@@ -21,12 +20,13 @@ Cark.prototype.init = function(){
   this.turningDirection = 0;
   this.theta = 0;
   this.omega = 0;
+  this.won = false;
 
   // init 2d drawing context
   this.canvas = document.getElementById('canvas');
   //this.ctx = this.canvas.getContext("2d");
   this.rect = this.canvas.getBoundingClientRect();
-  this.radius =  this.rect.width/2;
+  this.radius = 0.9 * this.rect.width/2;
 
   this.radPerSlice = 2*Math.PI/this.slices.length;  // radians per slice
   this.centerPoint = {x: this.rect.width/2, y: this.rect.height/2};
@@ -46,10 +46,12 @@ Cark.prototype.init = function(){
 
   // audio handler
   this.audio = new Audio();
+  this.audio.init();
 
   // init event listeners
   this.canvas.onmousedown = function(e){
     if(this.isTurning) return;
+    if(this.won && this.turnOnce === true) return;
 
     this.t1 = Date.now();
     this.p1 = this.toLocalCoords(e.clientX, e.clientY);
@@ -101,7 +103,7 @@ Cark.prototype.init = function(){
     this.prevTime = Date.now();
 
     var mag = Math.sqrt(this.p.x*this.p.x + this.p.y*this.p.y);
-    if( mag < this.buttonSprite.width/4 ){
+    if( mag < this.button.width/4 ){
         e.target.style.cursor = 'hand';
         this.buttonHover = true;
     }
@@ -153,8 +155,8 @@ Cark.prototype.initRenderer = function(){
     var endingAngle = startingAngle + this.radPerSlice;
 
     gSlice.moveTo(this.centerPoint.x, this.centerPoint.y);
-    gSlice.arc(300,300, this.radius, startingAngle, endingAngle);
-    gSlice.lineTo(300, 300);
+    gSlice.arc(this.centerPoint.x, this.centerPoint.y, this.radius, startingAngle, endingAngle);
+    gSlice.lineTo(this.centerPoint.x, this.centerPoint.y);
 
     gSlice.endFill();
 
@@ -162,6 +164,8 @@ Cark.prototype.initRenderer = function(){
 
     this.createSliceText(i, this.stageCark);
     this.placeSliceIcon(i, this.stageCark);
+
+    this.slices[i].graphics = gSlice;
   };
   this.stage.addChild(this.stageCark);
 
@@ -169,7 +173,8 @@ Cark.prototype.initRenderer = function(){
   var dilTexture = PIXI.Texture.fromImage('images/peg.png');
   this.dil = new PIXI.Sprite(dilTexture);
   this.dil.anchor.set(0.5, 0.2);
-  this.dil.position.set(300, 15);
+  this.dil.scale.set(0.8, 0.8);
+  this.dil.position.set(this.centerPoint.x, 15);
   this.stage.addChild(this.dil);
 
   // turn button
@@ -179,7 +184,7 @@ Cark.prototype.initRenderer = function(){
   this.button.interactive = true;
   this.button.buttonMode = true;
   this.button.anchor.set(0.5, 0.5);
-  this.button.position.set(300,300);
+  this.button.position.set(this.centerPoint.x, this.centerPoint.y);
   this.button.on("mouseover", function(){ this.button.texture = this.btnAktifTexture }.bind(this));
   this.button.on("mouseout", function(){ this.button.texture = this.btnPasifTexture }.bind(this));
   this.stage.addChild(this.button);
@@ -215,7 +220,7 @@ Cark.prototype.createPopOvers = function(){
       dropShadowAngle : Math.PI / 6,
       dropShadowDistance : 6,
       wordWrap : true,
-      wordWrapWidth : 440
+      wordWrapWidth : this.rect.width * 0.6
   };
 
   this.popOvers = [];
@@ -246,8 +251,8 @@ Cark.prototype.createSliceText = function(i, container){
   for(var j=0;j<text.length;j++){
     var rot = rotStart + (j * this.radsPerLetter);
     var txt = new PIXI.Text(text[j], style);
-    txt.x = 300 + 0.95 * this.radius * Math.cos( rot );
-    txt.y = 300 + 0.95 * this.radius * Math.sin( rot );
+    txt.x = this.centerPoint.x + 0.95 * this.radius * Math.cos( rot );
+    txt.y = this.centerPoint.y + 0.95 * this.radius * Math.sin( rot );
     txt.anchor.set(0.5, 0.5);
     txt.rotation = rot + Math.PI/2;
     container.addChild(txt);
@@ -263,8 +268,8 @@ Cark.prototype.placeSliceIcon = function(i, container){
   icon.scale.set(0.3, 0.3);
   icon.rotation = rot + Math.PI/2;
 
-  icon.position.x = 300 + this.radius * 0.7 * Math.cos( rot );
-  icon.position.y = 300 + this.radius * 0.7 * Math.sin( rot );
+  icon.position.x = this.centerPoint.x + this.radius * 0.7 * Math.cos( rot );
+  icon.position.y = this.centerPoint.y + this.radius * 0.7 * Math.sin( rot );
 
   icon.interactive = true;
   icon.tint = 0xededed;
@@ -322,7 +327,6 @@ function roundZero(val, delta){
 
 Cark.prototype.update = function() {
 
-  var won = false;
   var dt = Date.now() - this.lastUpdate;
   
   // update phsyics
@@ -332,20 +336,21 @@ Cark.prototype.update = function() {
   this.omega = roundZero(this.omega * (1-this.friction), this.dumping );
 
   if(this.isTurning && this.omega === 0) {
+    this.audio.playWin();
+    this.won = true;
     this.audio.stop();
     this.isTurning = false;
     this.turningDirection = 0;
     
     var _theta = (this.theta+Math.PI/2+this.radPerSlice/2) % (2*Math.PI);
-    var winIndex = Math.floor( 12 * _theta/(2*Math.PI) );
+    var winIndex = (this.slices.length - Math.floor( this.slices.length * _theta/(2*Math.PI) ) ) % this.slices.length;
 
-    console.log( this.theta, _theta, winIndex, this.slices[ (12-winIndex) % 12] );
+    this.slices[winIndex].graphics.tint = 0xff0000;
 
-    //if(this.onWin) this.onWin(winIndex);
-    won = false;
-
+    if(this.onWin) this.onWin(this.slices[winIndex]);
+    if(this.turnOnce !== true) this.won = false;
   }
-  else{
+  else if(this.isTurning) {
     this.audio.setRate(1-this.friction);
   }
 

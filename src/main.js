@@ -8,18 +8,18 @@ Resources.loadImagesFromArray(["peg.png", "button.png"], function(){
 	    buttonSprite: Resources.images["button.png"],
 
 		slices: [
-			{ text: "Marmaris", bgColor: 0xff0000 }, 
-			{ text: "Fethiye", 	bgColor: 0x00FF00 }, 
-			{ text: "Kemer", 	bgColor: 0x0000FF },
-			{ text: "Alanya", 	bgColor: 0xAAAA00 },
-			{ text: "Belek", 	bgColor: 0xAA00AA }, 
-			{ text: "Kemer 2", 	bgColor: 0x00AA00 },
-			{ text: "Kuşadası", bgColor: 0xffAACC },
-			{ text: "Side", 	bgColor: 0xffBBAA },
-			{ text: "Alanya 2", bgColor: 0xAABBCC },
-			{ text: "Bodrum", 	bgColor: 0xDDAACC },
-			{ text: "Kemer 3", 	bgColor: 0xff00CC },
-			{ text: "Çeşme", 	bgColor: 0xCC00AA }
+			{ text: "MARMARIS", bgColor: 0x43768b, icon: 'otel1.png', description: "Güzel Otel 7/24 Konaklama Herşey Dahil Sizi Bekliyor" }, 
+			{ text: "FETHİYE", 	bgColor: 0x797b7b, icon: 'otel2.png', description: "FETHİYE Oteli Açıklama" }, 
+			{ text: "KEMER", 	bgColor: 0x33669a, icon: 'otel3.png', description: "KEMER Oteli Açıklama" },
+			{ text: "ALANYA", 	bgColor: 0xc6a860, icon: 'otel4.png', description: "ALANYA Oteli Açıklama" },
+			{ text: "BELEK", 	bgColor: 0xde5b61, icon: 'otel1.png', description: "BELEK Oteli Açıklama" }, 
+			{ text: "KEMER", 	bgColor: 0x335c40, icon: 'otel2.png', description: "KEMER Oteli Açıklama" },
+			{ text: "KUŞADASI", bgColor: 0xc95309, icon: 'otel3.png', description: "KUŞADASI Oteli Açıklama" },
+			{ text: "SİDE", 	bgColor: 0xfba608, icon: 'otel4.png', description: "SİDE Oteli Açıklama" },
+			{ text: "ALANYA", 	bgColor: 0xfcf1cd, icon: 'otel1.png', description: "ALANYA Oteli Açıklama" },
+			{ text: "BODRUM", 	bgColor: 0x43768b, icon: 'otel2.png', description: "BODRUM Oteli Açıklama" },
+			{ text: "KEMER", 	bgColor: 0xc6a860, icon: 'otel3.png', description: "KEMER Oteli Açıklama" },
+			{ text: "ÇEŞME", 	bgColor: 0xde5b61, icon: 'otel4.png', description: "ÇEŞME Oteli Açıklama" }
 	    ],
 	    
 		onDragFinished: function(e){

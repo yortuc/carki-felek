@@ -10,6 +10,7 @@ function Audio(){
 
 	this.sound = sound;
 	this.rate = 1;
+	this.sound.volume = this.rate;
 }
 
 Audio.prototype.play = function(){
@@ -20,6 +21,7 @@ Audio.prototype.stop = function(){
 	this.sound.pause();
 	this.sound.currentTime = 0;
 	this.rate = 1;
+	this.sound.volume = this.rate;
 }
 
 Audio.prototype.setRate = function(friction){

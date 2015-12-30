@@ -55,7 +55,6 @@ Cark.prototype.init = function(){
     this.p1 = this.toLocalCoords(e.clientX, e.clientY);
     this.isDown = true;
 
-
     if(this.buttonHover) this.cevir();
 
   }.bind(this);
@@ -92,7 +91,10 @@ Cark.prototype.init = function(){
 
       this.theta += dTheta;
 
-      e.target.style.cursor = 'move';
+      var _theta = (this.theta+Math.PI/2+this.radPerSlice/2) % (2*Math.PI);
+      var winIndex = Math.floor( 12 * _theta/(2*Math.PI) );
+
+      console.log( this.theta, _theta, winIndex, this.slices[ (12-winIndex) % 12] );
     }
 
     this.prevP = p;
@@ -157,7 +159,9 @@ Cark.prototype.initRenderer = function(){
     gSlice.endFill();
 
     this.stageCark.addChild(gSlice);
+
     this.createSliceText(i, this.stageCark);
+    this.placeSliceIcon(i, this.stageCark);
   };
   this.stage.addChild(this.stageCark);
 
@@ -168,12 +172,20 @@ Cark.prototype.initRenderer = function(){
   this.dil.position.set(300, 15);
   this.stage.addChild(this.dil);
 
-  // roll button
-  //var btnTexture = PIXI.Texture.fromImage('images/button.png');
-  //var button = new PIXI.Sprite(btnTexture);
-  //button.anchor.set(0.5, 0.5);
-  //button.position.set(300,300);
-  //this.stage.addChild(button);
+  // turn button
+  this.btnPasifTexture = PIXI.Texture.fromImage('images/button_pasif.png');
+  this.btnAktifTexture = PIXI.Texture.fromImage('images/button_aktif.png');
+  this.button = new PIXI.Sprite(this.btnPasifTexture);
+  this.button.interactive = true;
+  this.button.buttonMode = true;
+  this.button.anchor.set(0.5, 0.5);
+  this.button.position.set(300,300);
+  this.button.on("mouseover", function(){ this.button.texture = this.btnAktifTexture }.bind(this));
+  this.button.on("mouseout", function(){ this.button.texture = this.btnPasifTexture }.bind(this));
+  this.stage.addChild(this.button);
+
+  // pop-over for description text
+  this.createPopOvers();  
 }
 
 Cark.prototype.analyseText = function() {
@@ -188,19 +200,46 @@ Cark.prototype.analyseText = function() {
   }
 
   this.maxTextLen = _maxTextLen;
-  this.radsPerLetter = this.radPerSlice/_maxTextLen;
+  this.radsPerLetter = this.radPerSlice/(_maxTextLen+2);
+}
+
+Cark.prototype.createPopOvers = function(){
+  var style = {
+      font : 'bold italic 36px Arial',
+      align: 'center',
+      fill : '#F7EDCA',
+      stroke : '#4a1850',
+      strokeThickness : 5,
+      dropShadow : true,
+      dropShadowColor : '#000000',
+      dropShadowAngle : Math.PI / 6,
+      dropShadowDistance : 6,
+      wordWrap : true,
+      wordWrapWidth : 440
+  };
+
+  this.popOvers = [];
+
+  for(var i=0; i<this.slices.length; i++){
+    var pop = new PIXI.Text(this.slices[i].description, style);
+    pop.anchor.set(0.5, 0.5);
+    pop.position.set(this.centerPoint.x, this.centerPoint.y);
+    pop.visible = false;
+    this.stage.addChild(pop);
+    this.popOvers.push(pop);
+  }
 }
 
 Cark.prototype.createSliceText = function(i, container){
 
-  var radEmptySpace = this.radsPerLetter * (this.maxTextLen - this.slices[i].text.length) / 2;
+  var radEmptySpace = (this.radPerSlice - this.radsPerLetter * this.slices[i].text.length) / 2;
 
-  var rotStart = i * this.radPerSlice - this.radPerSlice/2 + radEmptySpace;
+  var rotStart = i * this.radPerSlice - this.radPerSlice/2 + radEmptySpace + this.radsPerLetter/2;
 
-  var text = this.slices[i].text; 
-  
+  var text = this.slices[i].text;
+
   var style = {
-      font : '26px Arial',
+      font : '20px Courier',
       fill : '#fff'
   };
 
@@ -213,6 +252,35 @@ Cark.prototype.createSliceText = function(i, container){
     txt.rotation = rot + Math.PI/2;
     container.addChild(txt);
   }
+}
+
+Cark.prototype.placeSliceIcon = function(i, container){
+  var rot = i * this.radPerSlice;
+
+  var iconTexture = PIXI.Texture.fromImage('images/' + this.slices[i].icon);
+  var icon = new PIXI.Sprite(iconTexture);
+  icon.anchor.set(0.5, 0.5);
+  icon.scale.set(0.3, 0.3);
+  icon.rotation = rot + Math.PI/2;
+
+  icon.position.x = 300 + this.radius * 0.7 * Math.cos( rot );
+  icon.position.y = 300 + this.radius * 0.7 * Math.sin( rot );
+
+  icon.interactive = true;
+  icon.tint = 0xededed;
+
+  icon.on('mouseover', function(){
+    if(this.isTurning) return;
+    this.popOvers[i].visible = true;
+    icon.tint = 0xffffff;
+  }.bind(this));
+
+  icon.on('mouseout', function(){
+    this.popOvers[i].visible = false;
+    icon.tint = 0xededed;
+  }.bind(this));
+
+  container.addChild(icon);
 }
 
 Cark.prototype.turnCark = function(p2,p1,t2,t1){
@@ -231,6 +299,10 @@ Cark.prototype.turnCark = function(p2,p1,t2,t1){
  
     var xProj = (this.p.x > 0) ? -this.mouseVelocity.y : this.mouseVelocity.y;
     var yProj = (this.p.y > 0) ? this.mouseVelocity.x : -this.mouseVelocity.x;
+
+
+    console.log(xProj, yProj);
+
 
     this.isTurning = true;
     this.omega = (xProj + yProj) * ( Math.PI/120 / 2 );
@@ -263,7 +335,15 @@ Cark.prototype.update = function() {
     this.audio.stop();
     this.isTurning = false;
     this.turningDirection = 0;
-    won = true;
+    
+    var _theta = (this.theta+Math.PI/2+this.radPerSlice/2) % (2*Math.PI);
+    var winIndex = Math.floor( 12 * _theta/(2*Math.PI) );
+
+    console.log( this.theta, _theta, winIndex, this.slices[ (12-winIndex) % 12] );
+
+    //if(this.onWin) this.onWin(winIndex);
+    won = false;
+
   }
   else{
     this.audio.setRate(1-this.friction);
